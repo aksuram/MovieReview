@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace MovieReview.Models
@@ -16,11 +17,11 @@ namespace MovieReview.Models
 
         [Required]
         [StringLength(60)]
-        public string Password { get; set; }
+        public string Password { internal get; set; }
 
         [Required]
         [StringLength(100)]
-        public string Email { get; set; }
+        public string Email { internal get; set; }
 
         public DateTime CreationDate { get; set; }
 

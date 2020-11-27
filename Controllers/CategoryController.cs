@@ -4,6 +4,10 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
+using JWT;
+using JWT.Algorithms;
+using JWT.Exceptions;
+using JWT.Serializers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -24,6 +28,8 @@ namespace MovieReview.Controllers
         }
 
         // GET: api/categories
+        //everyone
+        //paging
         [HttpGet]
         public async Task<ActionResult<List<Category>>> GetCategories()
         {
@@ -39,6 +45,7 @@ namespace MovieReview.Controllers
         }
 
         // GET api/categories/{id}
+        //everyone
         [HttpGet("{id}")]
         public async Task<ActionResult<Category>> GetCategory(int id)
         {
@@ -53,43 +60,125 @@ namespace MovieReview.Controllers
             return Category;
         }
 
-        /*
         // PUT api/categories/{id}
+        //admin
         [HttpPut("{id}")]
         public async Task<IActionResult> PutCategory(int id, Category category)
         {
-            //TODO: check data validity
-            /*if (id != category.Id)
+            //Get token from the header
+            Microsoft.Extensions.Primitives.StringValues header;
+            if (!Request.Headers.TryGetValue("Authorization", out header))
             {
-                return BadRequest();
-            }*//*
-            category.Id = id;
+                return Forbid();
+            }
+            header.ToString();
+            string[] strings = header.ToString().Split(' ');
 
-            _context.Entry(category).State = EntityState.Modified;
+            //Check if format is as expected
+            if (strings.Length < 2)
+            {
+                return Forbid();
+            }
 
+            if (strings[0].ToLower() != "bearer")
+            {
+                return Forbid();
+            }
+
+            string token = strings[1];
+            IDictionary<string, object> Claims = null;
+            //Verify token
             try
             {
-                await _context.SaveChangesAsync();
+                IJsonSerializer serializer = new JsonNetSerializer();
+                var provider = new UtcDateTimeProvider();
+                IJwtValidator validator = new JwtValidator(serializer, provider);
+                IBase64UrlEncoder urlEncoder = new JwtBase64UrlEncoder();
+                IJwtAlgorithm algorithm = new HMACSHA256Algorithm();
+                IJwtDecoder decoder = new JwtDecoder(serializer, validator, urlEncoder, algorithm);
+
+                Claims = decoder.DecodeToObject<IDictionary<string, object>>(token, Configuration["Jwt:SecretKey"], true);
             }
-            catch (DbUpdateConcurrencyException)
+            catch (TokenExpiredException)
             {
-                if (!CategoryExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return Unauthorized();
+            }
+            catch (SignatureVerificationException)
+            {
+                return Unauthorized();
+            }
+
+            //Check roles
+            if ((string)Claims["role"] != "a")
+            {
+                return Unauthorized();
+            }
+
+            await using var Connection = new NpgsqlConnection(Configuration.GetConnectionString("DatabaseUrl"));
+            var affectedRows = await Connection.ExecuteAsync("UPDATE category SET name = @name WHERE id = @id", new { name = category.Name, id = id });
+
+            if (affectedRows == 0)
+            {
+                return BadRequest();
             }
 
             return NoContent();
-        }*/
+        }
 
         // POST api/categories/
+        //admin
         [HttpPost]
         public async Task<ActionResult<Category>> PostCategory(Category category)
         {
+            //Get token from the header
+            Microsoft.Extensions.Primitives.StringValues header;
+            if (!Request.Headers.TryGetValue("Authorization", out header))
+            {
+                return Forbid();
+            }
+            header.ToString();
+            string[] strings = header.ToString().Split(' ');
+
+            //Check if format is as expected
+            if (strings.Length < 2)
+            {
+                return Forbid();
+            }
+
+            if (strings[0].ToLower() != "bearer")
+            {
+                return Forbid();
+            }
+
+            string token = strings[1];
+            IDictionary<string, object> Claims = null;
+            //Verify token
+            try
+            {
+                IJsonSerializer serializer = new JsonNetSerializer();
+                var provider = new UtcDateTimeProvider();
+                IJwtValidator validator = new JwtValidator(serializer, provider);
+                IBase64UrlEncoder urlEncoder = new JwtBase64UrlEncoder();
+                IJwtAlgorithm algorithm = new HMACSHA256Algorithm();
+                IJwtDecoder decoder = new JwtDecoder(serializer, validator, urlEncoder, algorithm);
+
+                Claims = decoder.DecodeToObject<IDictionary<string, object>>(token, Configuration["Jwt:SecretKey"], true);
+            }
+            catch (TokenExpiredException)
+            {
+                return Unauthorized();
+            }
+            catch (SignatureVerificationException)
+            {
+                return Unauthorized();
+            }
+
+            //Check roles
+            if ((string)Claims["role"] != "a")
+            {
+                return Unauthorized();
+            }
+
             await using var Connection = new NpgsqlConnection(Configuration.GetConnectionString("DatabaseUrl"));
             category.Id = await Connection.ExecuteScalarAsync<int>("INSERT INTO category (name) VALUES (@name) RETURNING id;", new { name = category.Name });
 
@@ -97,9 +186,59 @@ namespace MovieReview.Controllers
         }
 
         // DELETE api/categories/{id}
+        //admin
         [HttpDelete("{id}")]
         public async Task<ActionResult<Category>> DeleteCategory(int id)
         {
+            //Get token from the header
+            Microsoft.Extensions.Primitives.StringValues header;
+            if (!Request.Headers.TryGetValue("Authorization", out header))
+            {
+                return Forbid();
+            }
+            header.ToString();
+            string[] strings = header.ToString().Split(' ');
+
+            //Check if format is as expected
+            if (strings.Length < 2)
+            {
+                return Forbid();
+            }
+
+            if (strings[0].ToLower() != "bearer")
+            {
+                return Forbid();
+            }
+
+            string token = strings[1];
+            IDictionary<string, object> Claims = null;
+            //Verify token
+            try
+            {
+                IJsonSerializer serializer = new JsonNetSerializer();
+                var provider = new UtcDateTimeProvider();
+                IJwtValidator validator = new JwtValidator(serializer, provider);
+                IBase64UrlEncoder urlEncoder = new JwtBase64UrlEncoder();
+                IJwtAlgorithm algorithm = new HMACSHA256Algorithm();
+                IJwtDecoder decoder = new JwtDecoder(serializer, validator, urlEncoder, algorithm);
+
+                Claims = decoder.DecodeToObject<IDictionary<string, object>>(token, Configuration["Jwt:SecretKey"], true);
+            }
+            catch (TokenExpiredException)
+            {
+                return Unauthorized();
+            }
+            catch (SignatureVerificationException)
+            {
+                return Unauthorized();
+            }
+
+            //Check roles
+            if ((string)Claims["role"] != "a")
+            {
+                return Unauthorized();
+            }
+
             await using var Connection = new NpgsqlConnection(Configuration.GetConnectionString("DatabaseUrl"));
 
             //Check if category exists
@@ -127,6 +266,8 @@ namespace MovieReview.Controllers
         }
 
         // GET api/categories/{id}/movies
+        //everyone
+        //paging
         [HttpGet("{id}/movies")]
         public async Task<ActionResult<List<Movie>>> GetMovies(int id)
         {

@@ -17,7 +17,6 @@ namespace MovieReview.Models
         [StringLength(5000)]
         public string Description { get; set; }
 
-        [Required]
         public int UserId { get; set; }
 
         [Required]
