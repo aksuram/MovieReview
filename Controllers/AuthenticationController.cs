@@ -44,9 +44,10 @@ namespace MovieReview.Controllers
             var token = new JwtBuilder()
                 .WithAlgorithm(new HMACSHA256Algorithm())
                 .WithSecret(Configuration["Jwt:SecretKey"])
-                .AddClaim("exp", DateTimeOffset.UtcNow.AddDays(2).ToUnixTimeSeconds())
+                .AddClaim("exp", DateTimeOffset.UtcNow.AddDays(1).ToUnixTimeSeconds())
                 .AddClaim("role", User.Role)
                 .AddClaim("id", User.Id)
+                .AddClaim("user", User.Username)
                 .Encode();
 
             JwtToken Token = new JwtToken(token);
